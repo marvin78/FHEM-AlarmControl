@@ -1,4 +1,4 @@
-# $Id: 98_AlarmControl.pm Version 0.3.8.5 2018-11-22 16:05:10Z marvin1978 $
+# $Id: 98_AlarmControl.pm $
 
 package main;
 
