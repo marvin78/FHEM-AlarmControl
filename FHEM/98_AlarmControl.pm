@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.4.0.2";
+my $version = "0.4.1.0";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -1111,13 +1111,15 @@ sub checkWarnDeny($$) {
     %sensors = %{$hash->{helper}{armStatesWarn}{$level}};
     @sens = keys %sensors;
     
+    my $do=0;
+    
     Log3 $name,4, "AlarmControl [$name]: Warn sensors in level $level: ".Dumper(@sens);
     
     # loop over all sensors
     foreach $sensor (@sens) {
       # eval Specials
       %specials = (
-        "%NAME" => $sensor,
+        "%SENSOR" => $sensor,
       );
       $cond = $hash->{helper}{armStatesWarn}{$level}{$sensor}{event};
 
@@ -1132,18 +1134,28 @@ sub checkWarnDeny($$) {
         # update reading with given user text
         readingsSingleUpdate($hash,"message",$hash->{helper}{armStatesWarn}{$level}{$sensor}{text},1);
         
-        $hash->{helper}{commandText} = AttrVal($name,"AM_warnTextPrefix","Achtung")." ".$hash->{helper}{armStatesWarn}{$level}{$sensor}{text};
+        if (!defined($hash->{helper}{commandText})) {
+          $hash->{helper}{commandText} = AttrVal($name,"AM_warnTextPrefix","Achtung")." ".$hash->{helper}{armStatesWarn}{$level}{$sensor}{text};
+        }
+        else {
+          if ($hash->{helper}{commandText} !~ /$hash->{helper}{armStatesWarn}{$level}{$sensor}{text}/) {
+            $hash->{helper}{commandText} .= ". ".$hash->{helper}{armStatesWarn}{$level}{$sensor}{text};
+          }
+        }
+       
         
-        # get user commands for this case
-        $commands = AttrVal($name,"AM_armStatesWarnCmds","-");
-        
-        # do user commands
-        doUserCommands($hash,$commands) if ($commands ne "-");
+        $do=1;
       }    
        
     }
+    if ($do==1) {
+      # get user commands for this case
+      $commands = AttrVal($name,"AM_armStatesWarnCmds","-");
+            
+      # do user commands
+      doUserCommands($hash,$commands) if ($commands ne "-");
+    }
   }
-    
   
   return 1;
   
