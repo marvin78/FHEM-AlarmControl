@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.3.9.3";
+my $version = "0.4.0.1";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -90,7 +90,8 @@ sub AlarmControl_Initialize($) {
   $hash->{GetFn}      =   "AlarmControl::Get";
   $hash->{DefFn}      =   "AlarmControl::Define";
   $hash->{NotifyFn}   =   "AlarmControl::Notify";
-  #$hash->{UndefFn}   =   "AlarmControl::Undefine";
+  $hash->{UndefFn}    =   "AlarmControl::Undefine";
+  $hash->{DeleteFn}   =   "AlarmControl::Delete";
 	$hash->{AttrFn}     =   "AlarmControl::Attr";
 	$hash->{onFn}       =   "AlarmControl::doOn";
 	$hash->{offFn}      =   "AlarmControl::doOff";
@@ -221,6 +222,32 @@ sub Define($$) {
     
     
     return undef;
+}
+
+sub Undefine($$) {
+  my ($hash, $arg) = @_;
+  
+  RemoveInternalTimer($hash);
+  
+  return undef;
+}
+
+# If Device is deleted, delete the password data
+sub Delete($$) {
+  my ($hash, $name) = @_;  
+  
+  my $old_index = $hash->{TYPE}"_".$name."_passwd";
+  
+  my $old_key =getUniqueId().$old_index;
+  
+  my ($err, $old_pwd) = getKeyValue($old_index);
+  
+  return undef unless(defined($old_pwd));
+      
+  setKeyValue($old_index, undef);
+
+  
+  Log3 $name, 3, "AlarmControl: device $name as been deleted. Passwords have been deleted too.";
 }
 
 sub Set($@) {
