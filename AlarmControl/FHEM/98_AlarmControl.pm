@@ -1181,26 +1181,6 @@ sub setPwd($$@) {
 	 
 }
 
-# error messages
-sub error($$$;$) {
-  my ($hash, $name, $error, $level) = @_;
-  
-  $level = 1 if (!defined($level));
-  
-  readingsBeginUpdate($hash);
-  		
-		readingsBulkUpdate($hash,"error",$error);
-    readingsBulkUpdate($hash,"lastError",$error) if ($error ne "none");
-    
-  
-  readingsEndUpdate($hash, 1);
-
-	Log3 $name, $level , $error;
-	
-	return $error;
-  
-}
-
 # check given password against the one we saved
 sub checkPwd ($$) {
 	my ($hash, $pwd) = @_;
@@ -1259,6 +1239,26 @@ sub getPwd ($) {
 	}
 	
 	return 0;
+}
+
+# error messages
+sub error($$$;$) {
+  my ($hash, $name, $error, $level) = @_;
+  
+  $level = 1 if (!defined($level));
+  
+  readingsBeginUpdate($hash);
+  		
+		readingsBulkUpdate($hash,"error",$error);
+    readingsBulkUpdate($hash,"lastError",$error) if ($error ne "none");
+    
+  
+  readingsEndUpdate($hash, 1);
+
+	Log3 $name, $level , $error;
+	
+	return $error;
+  
 }
 
 # some time converters for human readable and tts texts
