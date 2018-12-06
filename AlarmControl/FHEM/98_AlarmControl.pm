@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.3.8.8";
+my $version = "0.3.8.9";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -276,13 +276,13 @@ sub Set($@) {
 	        setState($hash,$name,$step,$args[0]);
 	      }
 	      else {
-          Log3 $name, 2, "AlarmControl [$name]: Cannot arm with level: ".$args[0];
+	        error($hash,$name,"AlarmControl [$name]: Cannot arm with level: ".$args[0],2);
           return "Cannot arm with level: ".$args[0];
         }
 	    }
 	    # if device ist inactive
 	    else {
-	      Log3 $name, 2, "$name - Could not be (un)armed. Device is disabled or Password is not set";
+	      error($hash,$name,"AlarmControl [$name]:  Could not be (un)armed. Device is disabled or Password is not set",2);
 				return "$name could not be (un)armed. Device is disabled or Password is not set.";
 	    }
 	    
@@ -293,7 +293,7 @@ sub Set($@) {
         getNotifyDev($hash,$args[0]);
       }
       else {
-        Log3 $name, 2, "AlarmControl [$name]: Cannot arm with level: ".$args[0];
+        error($hash,$name,"AlarmControl [$name]: Cannot set level: ".$args[0],2);
         return "Cannot set level to ".$args[0];
       }
     }
@@ -301,7 +301,7 @@ sub Set($@) {
     # set/edit passwords
     elsif ($cmd =~ /^passwords?$/ ){
 			return setPwd ($hash,$name,@args) if($hash->{helper}{PWD_NEEDED});
-      Log3 $name, 2, "AlarmControl [$name]: SOMEONE UNWANTED TRIED TO SET NEW PASSWORDs!!!";
+			error($hash,$name,"AlarmControl [$name]: SOMEONE UNWANTED TRIED TO SET NEW PASSWORDs!!! - ".$args[0],1);
       return "I didn't ask for a password, so go away!!!";
 		}
 	
@@ -785,7 +785,8 @@ sub doArm($$$) {
   Log3 $name,4, "AlarmControl [$name]: Armimg allowed!";
 
   doUpdate($hash,$arg,$hash->{helper}{armSteps}{1}{state},1);
-
+  
+  Log3 $name,3, "AlarmControl [$name]: Device was armed!";
 
   getNotifyDev ($hash,$arg);
   
@@ -1184,7 +1185,7 @@ sub setPwd($$@) {
 sub error($$$;$) {
   my ($hash, $name, $error, $level) = @_;
   
-  $level = 3 if (!defined($level));
+  $level = 1 if (!defined($level));
   
   readingsBeginUpdate($hash);
   		
