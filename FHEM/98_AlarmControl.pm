@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.4.0.1";
+my $version = "0.4.0.2";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -236,7 +236,7 @@ sub Undefine($$) {
 sub Delete($$) {
   my ($hash, $name) = @_;  
   
-  my $old_index = $hash->{TYPE}"_".$name."_passwd";
+  my $old_index = $hash->{TYPE}."_".$name."_passwd";
   
   my $old_key =getUniqueId().$old_index;
   
