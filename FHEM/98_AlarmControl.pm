@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.3.9.1";
+my $version = "0.3.9.2";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -711,7 +711,8 @@ sub doOff($$$;$) {
     
     $hash->{NOTIFYDEV}="global,".$name;
   
-    resetCounter($hash);
+    InternalTimer(gettimeofday()+1, resetCounter, $hash, 0);
+
     error($hash,$name,"none",4);
   
   }
