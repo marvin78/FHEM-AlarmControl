@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.3.8.9";
+my $version = "0.3.9.1";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -789,6 +789,8 @@ sub doArm($$$) {
   Log3 $name,3, "AlarmControl [$name]: Device was armed!";
 
   getNotifyDev ($hash,$arg);
+  
+  $hash->{helper}{number} = transSecToMin(AttrVal($name,"AM_armDelay",240),"tts");
   
   my $nHash;
   $nHash->{hash}  = $hash;
