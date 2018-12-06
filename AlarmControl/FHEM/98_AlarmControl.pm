@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.3.8.7";
+my $version = "0.3.8.8";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -201,8 +201,8 @@ sub Define($$) {
     CommandAttr( undef, $name . ' AM_armDelay 240' ) if ( AttrVal( $name, 'AM_armDelay', -1 ) eq -1 );
     CommandAttr( undef, $name . ' AM_offMsg Die Alarmanlage wurde erfolgreich ausgeschaltet!' ) if ( AttrVal( $name, 'AM_offTMsg', -1 ) eq -1 );
     CommandAttr( undef, $name . ' AM_onMsg Die Alarmanlage wurde scharf gestellt!' ) if ( AttrVal( $name, 'AM_onTMsg', -1 ) eq -1 );
-    CommandAttr( undef, $name . ' AM_warnTextPrefix Achtung!"' ) if ( AttrVal( $name, 'AM_warnTextPrefix', -1 ) eq -1 );
-    CommandAttr( undef, $name . ' AM_deneyTextPrefix Die Alarmanlage konnte nicht eingeschaltet werden!"' ) if ( AttrVal( $name, 'AM_denyTextPrefix', -1 ) eq -1 );
+    CommandAttr( undef, $name . ' AM_warnTextPrefix Achtung!' ) if ( AttrVal( $name, 'AM_warnTextPrefix', -1 ) eq -1 );
+    CommandAttr( undef, $name . ' AM_deneyTextPrefix Die Alarmanlage konnte nicht eingeschaltet werden!' ) if ( AttrVal( $name, 'AM_denyTextPrefix', -1 ) eq -1 );
     
     my $index = $hash->{TYPE}."_".$hash->{NAME}."_passwd";
 	  my ($err, $password) = getKeyValue($index);
@@ -810,9 +810,6 @@ sub doAlarm($;$$) {
     $step = ReadingsVal($name,"step",5)+1; 
   }
 
-  
- 
-  
   RemoveInternalTimer($hash);
   
   for(my $i=$step-1;$i>=0;$i--) {
@@ -847,6 +844,7 @@ sub doAlarm($;$$) {
   return undef;
 }
 
+# if you want to have a tts countdown.
 sub doCountdownCmds($$) {
   my ($hash,$events) = @_;
   my $name = $hash->{NAME};
@@ -871,6 +869,7 @@ sub doCountdownCmds($$) {
   return undef;
 }
 
+# any countdouwn
 sub doCountdown($) {
   my ($nHash) = @_;
   
@@ -955,6 +954,7 @@ sub doUserCommands($$) {
   my ($hash,$commands) = @_;
   my $name = $hash->{NAME}; 
   
+  # we process certain special variables in the commands
   my %specials = (
                   "%NAME"         => $name,
                   "%TEXT"         => $hash->{helper}{commandText},
@@ -1129,6 +1129,7 @@ sub resetCounter($) {
   
   readingsEndUpdate($hash, 1);
   
+  # reset some texts 
   delete($hash->{helper}{commandText}) if (defined($hash->{helper}{commandText}));
   delete($hash->{helper}{notifyText}) if (defined($hash->{helper}{notifyText}));
   delete($hash->{helper}{alarmText}) if (defined($hash->{helper}{alarmText}));
@@ -1136,6 +1137,7 @@ sub resetCounter($) {
   return undef;
 }
 
+# write password to file
 sub setPwd($$@) {
 	my ($hash, $name, @pwds) = @_;
 	 
@@ -1178,6 +1180,7 @@ sub setPwd($$@) {
 	 
 }
 
+# error messages
 sub error($$$;$) {
   my ($hash, $name, $error, $level) = @_;
   
@@ -1197,6 +1200,7 @@ sub error($$$;$) {
   
 }
 
+# check given password against the one we saved
 sub checkPwd ($$) {
 	my ($hash, $pwd) = @_;
 	my $name = $hash->{NAME};
@@ -1225,6 +1229,7 @@ sub checkPwd ($$) {
 	return 0;
 }
 
+# get the password
 sub getPwd ($) {
 	my ($hash) = @_;
 	my $name = $hash->{NAME};
@@ -1255,6 +1260,7 @@ sub getPwd ($) {
 	return 0;
 }
 
+# some time converters for human readable and tts texts
 sub transSecToMin($$) {
 	my ($sec,$type)=@_;
 	my $ret="";
@@ -1275,6 +1281,7 @@ sub transSecToMin($$) {
 	return $ret;
 }
 
+# check if string is part of array
 sub inArray {
   my ($arr,$search_for) = @_;
   foreach (@$arr) {
