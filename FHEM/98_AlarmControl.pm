@@ -781,6 +781,8 @@ sub doArm($$$) {
   RemoveInternalTimer($hash);
   
   my $wait = AttrVal($name,"AM_armDelay",240);
+  
+  $hash->{helper}{number} = transSecToMin($wait,"tts");
     
   Log3 $name,4, "AlarmControl [$name]: Armimg allowed!";
 
@@ -789,8 +791,6 @@ sub doArm($$$) {
   Log3 $name,3, "AlarmControl [$name]: Device was armed!";
 
   getNotifyDev ($hash,$arg);
-  
-  $hash->{helper}{number} = transSecToMin(AttrVal($name,"AM_armDelay",240),"tts");
   
   my $nHash;
   $nHash->{hash}  = $hash;
