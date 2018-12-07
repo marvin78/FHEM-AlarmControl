@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.4.5.2";
+my $version = "0.4.5.4";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -739,8 +739,8 @@ sub setState($$$;$$) {
 }
 
 # off function
-sub doOff($$$;$) {
-  my ($hash,$name,$arg,$internal) = @_;
+sub doOff($$$;$$) {
+  my ($hash,$name,$arg,$internal,$noCommand) = @_;
   
   my $check = defined($internal) && $internal eq "83903423hjhjkhbg324giujhkdsf87u90ü32njidvf93jhjiou"?1:0;
   
@@ -749,6 +749,8 @@ sub doOff($$$;$) {
   RemoveInternalTimer($hash);
   
   if (checkPwd($hash,$arg) || $check) {
+    
+    $hash->{helper}{doOff} = 1;
     
     Log3 $name,4, "AlarmControl [$name]: password correct or internal off: set disarmed - checkValue: ".$check;
     
@@ -765,9 +767,9 @@ sub doOff($$$;$) {
     }
     
     # update with text
-    doUpdate($hash,0,$armSteps{-1}{state},-1,AttrVal($name,"AM_offMsg","none")) if (!$check);
+    doUpdate($hash,0,$armSteps{-1}{state},-1,AttrVal($name,"AM_offMsg","none")) if (!$noCommand);
     # update without text
-    doUpdate($hash,0,$armSteps{-1}{state},-1,"noUserCommand") if ($check);
+    doUpdate($hash,0,$armSteps{-1}{state},-1,"noUserCommand") if ($noCommand);
     
     $hash->{NOTIFYDEV}="global,".$name;
   
@@ -815,7 +817,7 @@ sub doOn($;$$$) {
     else {
       # don't arm / set off (reset)
       Log3 $name,3, "AlarmControl [$name]: Armimg denied!";
-      CallFn($name, "offFn", $hash,$name,-1,"83903423hjhjkhbg324giujhkdsf87u90ü32njidvf93jhjiou");
+      CallFn($name, "offFn", $hash,$name,-1,"83903423hjhjkhbg324giujhkdsf87u90ü32njidvf93jhjiou",1);
     }
   }
   else {
@@ -950,7 +952,7 @@ sub doCountdown($) {
   # countdown is 0 do it
   if ($nHash->{"wait"}==-1) {
     $nHash->{"wait"}="0";
-    InternalTimer(gettimeofday()+0.1, $nHash->{"functionDo"}, $hash, 0);
+    InternalTimer(gettimeofday()+0.1, $nHash->{"functionDo"}, $hash, 0) if (!defined($hash->{helper}{doOff}));
     return undef;
   }
   
@@ -1218,6 +1220,7 @@ sub deleteHelpers($hash) {
   delete($hash->{helper}{commandText}) if (defined($hash->{helper}{commandText}));
   delete($hash->{helper}{notifyText}) if (defined($hash->{helper}{notifyText}));
   delete($hash->{helper}{alarmText}) if (defined($hash->{helper}{alarmText}));
+  delete($hash->{helper}{doOff});
   CommandDeleteReading(undef,$hash->{NAME}." countEvents_.*");
     
   return undef;
