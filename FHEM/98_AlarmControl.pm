@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.4.5.4";
+my $version = "0.4.5.8";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -428,6 +428,9 @@ sub Notify($$) {
             setState($hash,$name,5,5);
           
           } 
+          elsif (!defined($hash->{helper}{sensors}{$level}{$devName}{event})) {
+            delete($hash->{helper}{sensors}{$level}{$devName});
+          }
         }
         
       }
@@ -451,6 +454,9 @@ sub Notify($$) {
             
             doUnarmByEvent($hash,$name,$hash->{helper}{allowedUnarmEvents}{$level}{$devName}{text},$devName);
           } 
+          elsif (!defined($hash->{helper}{allowedUnarmEvents}{$level}{$devName}{event})) {
+            delete($hash->{helper}{allowedUnarmEvents}{$level}{$devName});
+          }
         }
         
         if (defined($hash->{helper}{notifyEvents}{$level})) {
@@ -471,6 +477,9 @@ sub Notify($$) {
             
             doNotifyEvent($hash,$name,$hash->{helper}{notifyEvents}{$level}{$devName}{text},$devName);
           } 
+          elsif (!defined($hash->{helper}{notifyEvents}{$level}{$devName}{event})) {
+            delete($hash->{helper}{notifyEvents}{$level}{$devName});
+          }
         }
         
       }
@@ -1021,6 +1030,7 @@ sub doUserCommands($$) {
   my ($hash,$commands) = @_;
   my $name = $hash->{NAME}; 
   
+  
   # we process certain special variables in the commands
   my %specials = (
                   "%NAME"         => $name,
@@ -1388,11 +1398,16 @@ sub getMessageDeviceNames($$$) {
   my $count = ReadingsVal($hash->{NAME},"countEvents_".$devName,"");
   my $descr = AttrVal($hash->{NAME},"AM_levelDescr".ReadingsVal($hash->{NAME},"level",0),"");
   
+  my $pluralE = $count>1?"e":"";
+  my $pluralS = $count>1?"s":""; 
+  
   $message =~ s/\$DESCR/$descr/;
   $message =~ s/\$SENSOR/$devName/;
   $message =~ s/\$ALIAS/$alias/;
   $message =~ s/\$SENSORALIAS/$sensoralias/;
   $message =~ s/\$COUNT/$count/;
+  $message =~ s/\$PLURALE/$pluralE/;
+  $message =~ s/\$PLURALS/$pluralS/;
   
   return $message;
 }
