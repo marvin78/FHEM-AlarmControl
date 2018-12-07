@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.4.5.9";
+my $version = "0.4.6.1";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -414,7 +414,7 @@ sub Notify($$) {
       
           my @sens = keys %sensors;
           
-          Log3 $name,4, "AlarmControl [$name]: Notify Sensors: ".Dumper(%sensors)." - ".Dumper(@sens);
+          Log3 $name,5, "AlarmControl [$name]: Notify Sensors: ".Dumper(%sensors)." - ".Dumper(@sens);
           
           if (defined($hash->{helper}{sensors}{$level}{$devName}{event}) && 
               grep(m/^$hash->{helper}{sensors}{$level}{$devName}{event}$/, @{$events}) &&
@@ -442,7 +442,7 @@ sub Notify($$) {
           
           my @sens = keys %sensors;
           
-          Log3 $name,4, "AlarmControl [$name]: Notify Sensors: ".Dumper(%sensors)." - ".Dumper(@sens);
+          Log3 $name,5, "AlarmControl [$name]: Notify Sensors: ".Dumper(%sensors)." - ".Dumper(@sens);
           
           if (defined($hash->{helper}{allowedUnarmEvents}{$level}{$devName}{event}) && 
               grep(m/^$hash->{helper}{allowedUnarmEvents}{$level}{$devName}{event}$/, @{$events}) &&
@@ -465,7 +465,7 @@ sub Notify($$) {
           
           my @sens = keys %sensors;
           
-          Log3 $name,4, "AlarmControl [$name]: Notify Sensors: ".Dumper(%sensors)." - ".Dumper(@sens);
+          Log3 $name,5, "AlarmControl [$name]: Notify Sensors: ".Dumper(%sensors)." - ".Dumper(@sens);
           
           if (defined($hash->{helper}{notifyEvents}{$level}{$devName}{event}) && 
               grep(m/^$hash->{helper}{notifyEvents}{$level}{$devName}{event}$/, @{$events}) &&
@@ -488,12 +488,12 @@ sub Notify($$) {
     if ($dev->{NAME} eq $name) {
       if ($state eq "triggered") {
         doCountdownCmds($hash,$events);
-        Log3 $name,4, "AlarmControl [$name]: Notify Countdown: ".Dumper($events);
+        Log3 $name,5, "AlarmControl [$name]: Notify Countdown: ".Dumper($events);
       }
     }
   }
   
-  Log3 $name,4, "AlarmControl [$name]: Alarm Event: ".Dumper($events);
+  Log3 $name,5, "AlarmControl [$name]: Alarm Event: ".Dumper($events);
   
   return undef;
 }
@@ -1111,7 +1111,7 @@ sub checkWarnDeny($$) {
     %sensors = %{$hash->{helper}{armStatesDeny}{$level}};
     @sens = keys %sensors;
     
-    Log3 $name,4, "AlarmControl [$name]: Deny sensors in level $level: ".Dumper(@sens);
+    Log3 $name,5, "AlarmControl [$name]: Deny sensors in level $level: ".Dumper(@sens);
     
     # loop over all sensors
     foreach $sensor (@sens) {
@@ -1161,7 +1161,7 @@ sub checkWarnDeny($$) {
     
     my $do=0;
     
-    Log3 $name,4, "AlarmControl [$name]: Warn sensors in level $level: ".Dumper(@sens);
+    Log3 $name,5, "AlarmControl [$name]: Warn sensors in level $level: ".Dumper(@sens);
     
     # loop over all sensors
     foreach $sensor (@sens) {
