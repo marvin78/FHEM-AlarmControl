@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.4.5.1";
+my $version = "0.4.5.2";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -1385,11 +1385,11 @@ sub getMessageDeviceNames($$$) {
   my $count = ReadingsVal($hash->{NAME},"countEvents_".$devName,"");
   my $descr = AttrVal($hash->{NAME},"AM_levelDescr".ReadingsVal($hash->{NAME},"level",0),"");
   
+  $message =~ s/\$DESCR/$descr/;
   $message =~ s/\$SENSOR/$devName/;
   $message =~ s/\$ALIAS/$alias/;
   $message =~ s/\$SENSORALIAS/$sensoralias/;
   $message =~ s/\$COUNT/$count/;
-  $message =~ s/\$DESCR/$descr/;
   
   return $message;
 }
