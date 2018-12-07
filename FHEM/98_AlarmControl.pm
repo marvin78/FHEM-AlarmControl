@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.4.6.1";
+my $version = "0.4.6.5";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -426,7 +426,7 @@ sub Notify($$) {
             
             ## Alarm triggered
             setState($hash,$name,5,5);
-          
+            Log3 $name,4, "AlarmControl [$name]: Alarm triggered!!";
           } 
           elsif (!defined($hash->{helper}{sensors}{$level}{$devName}{event})) {
             delete($hash->{helper}{sensors}{$level}{$devName});
@@ -453,6 +453,7 @@ sub Notify($$) {
             readingsSingleUpdate($hash,"unarmDevice",$devName,1);
             
             doUnarmByEvent($hash,$name,$hash->{helper}{allowedUnarmEvents}{$level}{$devName}{text},$devName);
+            Log3 $name,4, "AlarmControl [$name]: Unarmed by device ".$devName;
           } 
           elsif (!defined($hash->{helper}{allowedUnarmEvents}{$level}{$devName}{event})) {
             delete($hash->{helper}{allowedUnarmEvents}{$level}{$devName});
@@ -476,6 +477,7 @@ sub Notify($$) {
             readingsSingleUpdate($hash,"notifyDevice",$devName,1);
             
             doNotifyEvent($hash,$name,$hash->{helper}{notifyEvents}{$level}{$devName}{text},$devName);
+            Log3 $name,4, "AlarmControl [$name]: Got notify event from device ".$devName;
           } 
           elsif (!defined($hash->{helper}{notifyEvents}{$level}{$devName}{event})) {
             delete($hash->{helper}{notifyEvents}{$level}{$devName});
@@ -532,7 +534,7 @@ sub Attr(@) {
 		}
 	}
 	
-	if ( $attrName =~ /^AM_(o(n|ff)(.*)|triggered|arming)?(Countdown)?Cmds$/) {
+	if ( $attrName =~ /^AM_alarmStep.|(o(n|ff)(.*)|triggered|arming)?(Countdown)?Cmds$/) {
     if ( $cmd eq "set" && $attrVal ne "0" && $init_done) {
       
       getCommands($hash,$attrName,$attrVal);
@@ -753,7 +755,7 @@ sub doOff($$$;$$) {
   
   my $check = defined($internal) && $internal eq "83903423hjhjkhbg324giujhkdsf87u90ü32njidvf93jhjiou"?1:0;
   
-  Log3 $name,4, "AlarmControl [$name]: check for interal: ".$check;
+  Log3 $name,4, "AlarmControl [$name]: check for internal: ".$check;
   
   RemoveInternalTimer($hash);
   
@@ -896,6 +898,10 @@ sub doAlarm($;$$) {
   
   $hash->{helper}{commandText} = $hash->{helper}{sensors}{$level}{ReadingsVal($name,"triggerDevice","-")}{text};
   
+  if ($step>=6) {
+    Log3 $name,3, "AlarmControl [$name]: ALARM!";
+  }
+  
   doUpdate($hash,$level,$armSteps{$step}{state},
             $step,
             $hash->{helper}{sensors}{$level}{ReadingsVal($name,"triggerDevice","-")}{text});
@@ -904,10 +910,15 @@ sub doAlarm($;$$) {
               
   my $wait = AttrVal($name,"AM_step".$plusStep."Delay",3);
   
+  if ($plusStep>=7) {
+    resetCounter($hash);
+  }
+  
   if ($plusStep>$armSteps{-1}{"count"}) {
     resetCounter($hash);
     return undef;
   }
+  
   
   my $nHash;
   $nHash->{hash}  = $hash;
@@ -1126,8 +1137,6 @@ sub checkWarnDeny($$) {
 
       $final_cond = EvalSpecials($cond, %specials);
       
-      Log3 $name,4, "AlarmControl [$name]: Deny sensor in level $level (eval): ".$final_cond;
-      
       $message = $hash->{helper}{armStatesDeny}{$level}{$sensor}{text} if (defined($hash->{helper}{armStatesDeny}{$level}{$sensor}{text}));
       
       if (defined($message) && $sensor ne "-") {
@@ -1223,7 +1232,7 @@ sub resetCounter($) {
   return undef;
 }
 
-sub deleteHelpers($hash) {
+sub deleteHelpers($) {
   my ($hash) = @_;
   
   # reset some texts 
@@ -1395,7 +1404,7 @@ sub getMessageDeviceNames($$$) {
  
   my $alias = AttrVal($devName,"alias",$devName);
   my $sensoralias = AttrVal($devName,"alias",$devName).($alias eq $devName?"":" (".$devName.")");
-  my $count = ReadingsVal($hash->{NAME},"countEvents_".$devName,"");
+  my $count = ReadingsVal($hash->{NAME},"countEvents_".$devName,0);
   my $descr = AttrVal($hash->{NAME},"AM_levelDescr".ReadingsVal($hash->{NAME},"level",0),"");
   
   my $pluralE = $count>1?"e":"";
