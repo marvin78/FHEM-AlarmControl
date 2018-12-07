@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.4.1.0";
+my $version = "0.4.1.8";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -406,63 +406,70 @@ sub Notify($$) {
     if ($dev->{NAME} ne "global" && $dev->{NAME} ne $name) {
       # only if AlarmControl device is in on state
       if ($state eq "on") {
-        my %sensors = %{$hash->{helper}{sensors}{$level}};
-    
-        my @sens = keys %sensors;
         
-        Log3 $name,4, "AlarmControl [$name]: Notify Sensors: ".Dumper(%sensors)." - ".Dumper(@sens);
-        
-        if (defined($hash->{helper}{sensors}{$level}{$devName}{event}) && 
-            grep(m/^$hash->{helper}{sensors}{$level}{$devName}{event}$/, @{$events}) &&
-            inArray(\@sens,$devName)) {
-              
-          ## trigger device into ReadingsVal
+        if (defined($hash->{helper}{sensors}{$level})) {
+          my %sensors = %{$hash->{helper}{sensors}{$level}};
+      
+          my @sens = keys %sensors;
           
-          readingsSingleUpdate($hash,"triggerDevice",$devName,1);
+          Log3 $name,4, "AlarmControl [$name]: Notify Sensors: ".Dumper(%sensors)." - ".Dumper(@sens);
           
-          ## Alarm triggered
-          setState($hash,$name,5,5);
-        
-        } 
+          if (defined($hash->{helper}{sensors}{$level}{$devName}{event}) && 
+              grep(m/^$hash->{helper}{sensors}{$level}{$devName}{event}$/, @{$events}) &&
+              inArray(\@sens,$devName)) {
+                
+            ## trigger device into ReadingsVal
+            
+            readingsSingleUpdate($hash,"triggerDevice",$devName,1);
+            
+            ## Alarm triggered
+            setState($hash,$name,5,5);
+          
+          } 
+        }
         
       }
       # unarm by event
       if ($state ne "off" && !IsDisabled($name)) {
-        # get the allowed unarm sensors
-        my %sensors = %{$hash->{helper}{allowedUnarmEvents}{$level}};
-        
-        my @sens = keys %sensors;
-        
-        Log3 $name,4, "AlarmControl [$name]: Notify Sensors: ".Dumper(%sensors)." - ".Dumper(@sens);
-        
-        if (defined($hash->{helper}{allowedUnarmEvents}{$level}{$devName}{event}) && 
-            grep(m/^$hash->{helper}{allowedUnarmEvents}{$level}{$devName}{event}$/, @{$events}) &&
-            inArray(\@sens,$devName)) {
-              
-          ## trigger device into ReadingsVal
+        if (defined($hash->{helper}{allowedUnarmEvents}{$level})) {
+          # get the allowed unarm sensors
+          my %sensors = %{$hash->{helper}{allowedUnarmEvents}{$level}};
           
-          readingsSingleUpdate($hash,"unarmDevice",$devName,1);
+          my @sens = keys %sensors;
           
-          doUnarmByEvent($hash,$name,$hash->{helper}{allowedUnarmEvents}{$level}{$devName}{text},$devName);
-        } 
-        
-        # get the notify sensors
-        my %sensors = %{$hash->{helper}{notifyEvents}{$level}};
-        
-        my @sens = keys %sensors;
-        
-        Log3 $name,4, "AlarmControl [$name]: Notify Sensors: ".Dumper(%sensors)." - ".Dumper(@sens);
-        
-        if (defined($hash->{helper}{notifyEvents}{$level}{$devName}{event}) && 
-            grep(m/^$hash->{helper}{notifyEvents}{$level}{$devName}{event}$/, @{$events}) &&
-            inArray(\@sens,$devName)) {
-              
-          ## trigger device into ReadingsVal
+          Log3 $name,4, "AlarmControl [$name]: Notify Sensors: ".Dumper(%sensors)." - ".Dumper(@sens);
           
-          readingsSingleUpdate($hash,"notifyDevice",$devName,1);
+          if (defined($hash->{helper}{allowedUnarmEvents}{$level}{$devName}{event}) && 
+              grep(m/^$hash->{helper}{allowedUnarmEvents}{$level}{$devName}{event}$/, @{$events}) &&
+              inArray(\@sens,$devName)) {
+                
+            ## trigger device into ReadingsVal
+            
+            readingsSingleUpdate($hash,"unarmDevice",$devName,1);
+            
+            doUnarmByEvent($hash,$name,$hash->{helper}{allowedUnarmEvents}{$level}{$devName}{text},$devName);
+          } 
+        }
+        
+        if (defined($hash->{helper}{notifyEvents}{$level})) {
+          # get the notify sensors
+          my %sensors = %{$hash->{helper}{notifyEvents}{$level}};
           
-          doNotifyEvent($hash,$name,$hash->{helper}{notifyEvents}{$level}{$devName}{text},$devName);
-        } 
+          my @sens = keys %sensors;
+          
+          Log3 $name,4, "AlarmControl [$name]: Notify Sensors: ".Dumper(%sensors)." - ".Dumper(@sens);
+          
+          if (defined($hash->{helper}{notifyEvents}{$level}{$devName}{event}) && 
+              grep(m/^$hash->{helper}{notifyEvents}{$level}{$devName}{event}$/, @{$events}) &&
+              inArray(\@sens,$devName)) {
+                
+            ## trigger device into ReadingsVal
+            
+            readingsSingleUpdate($hash,"notifyDevice",$devName,1);
+            
+            doNotifyEvent($hash,$name,$hash->{helper}{notifyEvents}{$level}{$devName}{text},$devName);
+          } 
+        }
         
       }
     }
@@ -727,18 +734,24 @@ sub doOff($$$;$) {
     $hash->{helper}{commandText} = AttrVal($name,"AM_offMsg","-");
     
     # add notify text to off text for further commands
-    if (defined($hash->{helper}{notifyText}) && $hash->{helper}{notifyText} ne "") {
-      $hash->{helper}{commandText}.=". ".$hash->{helper}{notifyText};
+    if (defined($hash->{helper}{notifyText})) {
+      my %sensors = %{$hash->{helper}{notifyText}};
+      # only the keys (device names)
+      my @sens = keys %sensors;
+      foreach my $sensor (@sens) {
+        $hash->{helper}{commandText}.=". ".$hash->{helper}{notifyText}{$sensor};
+      }
     }
     
     # update with text
-    doUpdate($hash,0,$hash->{helper}{armSteps}{-1}{state},-1,AttrVal($name,"AM_offMsg","none")) if (!$check);
+    doUpdate($hash,0,$armSteps{-1}{state},-1,AttrVal($name,"AM_offMsg","none")) if (!$check);
     # update without text
-    doUpdate($hash,0,$hash->{helper}{armSteps}{-1}{state},-1,"noUserCommand") if ($check);
+    doUpdate($hash,0,$armSteps{-1}{state},-1,"noUserCommand") if ($check);
     
     $hash->{NOTIFYDEV}="global,".$name;
   
     InternalTimer(gettimeofday()+1.5, "AlarmControl::resetCounter", $hash, 0);
+    InternalTimer(gettimeofday()+1.3, "AlarmControl::deleteHelpers", $hash, 0);
 
     error($hash,$name,"none",4);
   
@@ -763,7 +776,7 @@ sub doOn($;$$$) {
   
   my $state = ReadingsVal($name,"state","off");
   
-  doUpdate($hash,$arg,$hash->{helper}{armSteps}{$step}{state},$step,AttrVal($name,"AM_onMsg","none"));
+  doUpdate($hash,$arg,$armSteps{$step}{state},$step,AttrVal($name,"AM_onMsg","none"));
   
   $step = ReadingsVal($name,"step",2)+1;
   
@@ -814,7 +827,7 @@ sub doArm($$$) {
     
   Log3 $name,4, "AlarmControl [$name]: Armimg allowed!";
 
-  doUpdate($hash,$arg,$hash->{helper}{armSteps}{1}{state},1);
+  doUpdate($hash,$arg,$armSteps{1}{state},1);
   
   Log3 $name,3, "AlarmControl [$name]: Device was armed!";
 
@@ -851,7 +864,7 @@ sub doAlarm($;$$) {
   
   $hash->{helper}{commandText} = $hash->{helper}{sensors}{$level}{ReadingsVal($name,"triggerDevice","-")}{text};
   
-  doUpdate($hash,$level,$hash->{helper}{armSteps}{$step}{state},
+  doUpdate($hash,$level,$armSteps{$step}{state},
             $step,
             $hash->{helper}{sensors}{$level}{ReadingsVal($name,"triggerDevice","-")}{text});
             
@@ -957,7 +970,7 @@ sub doUpdate($$$$;$) {
   
   
   if (defined($message) && $triggerDevice ne "-") {
-    $message = getMessageDeviceNames($triggerDevice,$message);
+    $message = getMessageDeviceNames($hash,$triggerDevice,$message);
   }
   
   readingsBeginUpdate($hash);
@@ -973,7 +986,7 @@ sub doUpdate($$$$;$) {
   
   # do userCommands
   
-  my $commands = $hash->{helper}{cmds}{$hash->{helper}{armSteps}{$step}{"cmdAttribute"}}{$level};
+  my $commands = $hash->{helper}{cmds}{$armSteps{$step}{"cmdAttribute"}}{$level};
   
   doUserCommands($hash,$commands) if ($commands && (!defined($message) || (defined($message) && $message ne "noUserCommand")));
   
@@ -1011,7 +1024,7 @@ sub doUnarmByEvent($$$$) {
   my ($hash,$name,$message,$devName) = @_;
   
   if (defined($message) && $devName ne "-") {
-    $message = getMessageDeviceNames($devName,$message);
+    $message = getMessageDeviceNames($hash,$devName,$message);
   }
   
   ## message
@@ -1026,16 +1039,17 @@ sub doNotifyEvent($$$$) {
   my ($hash,$name,$message,$devName) = @_;
   
   if (defined($message) && $devName ne "-") {
-    $message = getMessageDeviceNames($devName,$message);
-  }
+    
   
-  if (!defined($hash->{helper}{notifyText})) {
-    $hash->{helper}{notifyText} = $message;
-  }
-  else {
-    $hash->{helper}{notifyText}.= ". ".$message if ($hash->{helper}{notifyText} !~ /$message/);
-  }
+    my $countEvents = ReadingsVal($name,"countEvents_".$devName,0)+1;
   
+    readingsSingleUpdate($hash,"countEvents_".$devName,$countEvents,1);
+    
+    $message = getMessageDeviceNames($hash,$devName,$message);
+    
+    $hash->{helper}{notifyText}{$devName} = $message;
+  }
+ 
   
   return undef;
 }
@@ -1083,7 +1097,7 @@ sub checkWarnDeny($$) {
       $message = $hash->{helper}{armStatesDeny}{$level}{$sensor}{text} if (defined($hash->{helper}{armStatesDeny}{$level}{$sensor}{text}));
       
       if (defined($message) && $sensor ne "-") {
-        $message = getMessageDeviceNames($sensor,$message);
+        $message = getMessageDeviceNames($hash,$sensor,$message);
       }
       
       # if user condition is true
@@ -1172,11 +1186,18 @@ sub resetCounter($) {
   
   readingsEndUpdate($hash, 1);
   
+  return undef;
+}
+
+sub deleteHelpers($hash) {
+  my ($hash) = @_;
+  
   # reset some texts 
   delete($hash->{helper}{commandText}) if (defined($hash->{helper}{commandText}));
   delete($hash->{helper}{notifyText}) if (defined($hash->{helper}{notifyText}));
   delete($hash->{helper}{alarmText}) if (defined($hash->{helper}{alarmText}));
-  
+  CommandDeleteReading(undef,$hash->{NAME}." countEvents_.*");
+    
   return undef;
 }
 
@@ -1334,15 +1355,17 @@ sub inArray {
 }
 
 # return message with device names
-sub getMessageDeviceNames($$) {
-  my ($devName,$message) = @_;
+sub getMessageDeviceNames($$$) {
+  my ($hash,$devName,$message) = @_;
  
   my $alias = AttrVal($devName,"alias",$devName);
   my $sensoralias = AttrVal($devName,"alias",$devName).($alias eq $devName?"":" (".$devName.")");
+  my $count = ReadingsVal($hash->{NAME},"countEvents_".$devName,"");
   
   $message =~ s/\$SENSOR/$devName/;
   $message =~ s/\$ALIAS/$alias/;
   $message =~ s/\$SENSORALIAS/$sensoralias/;
+  $message =~ s/\$COUNT/$count/;
   
   return $message;
 }
