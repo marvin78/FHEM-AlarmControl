@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.4.1.8";
+my $version = "0.4.5.1";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -112,6 +112,7 @@ sub AlarmControl_Initialize($) {
                           $armSteps{6}{"attributes"}.
                           $armSteps{7}{"attributes"}.
                           $armSteps{8}{"attributes"}.
+                          "userattr:textField-long ".
 											    $readingFnAttributes;
 											  
 	$hash->{NotifyOrderPrefix} = "11-";    # order number NotifyFn
@@ -391,6 +392,7 @@ sub Notify($$) {
 		getSensors($hash,"AM_armStatesWarn");
 		getSensors($hash,"AM_allowedUnarmEvents");
 		getSensors($hash,"AM_notifyEvents");
+		getAlarmStepAttrs($hash);
 		## get the commands for each level and step
 		foreach my $key (keys %armSteps) {
 		  if (defined($armSteps{$key}{"cmdAttribute"})) {
@@ -535,6 +537,12 @@ sub Attr(@) {
       getCommands($hash,"AM_triggeredCountdownCmds",AttrVal($name,"AM_triggeredCountdownCmds",240),$attrVal);
       
     }
+	}
+	
+	if ( $attrName eq "AM_armLevelCount") {
+	  if ( $cmd eq "set" && $attrVal ne "0" && $init_done) {
+	    getAlarmStepAttrs($hash);
+	  }
 	}
 	
 	
@@ -685,6 +693,19 @@ sub getNotifyDev($;$) {
   $notifyDev .= ",".join(",",@sens);
   $hash->{NOTIFYDEV} = $notifyDev;
   
+  return undef;
+}
+
+sub getAlarmStepAttrs($) {
+  my ($hash) = @_;
+  
+  my $name = $hash->{NAME};
+  
+  my $count = AttrVal($name,"AM_armLevelCount",3);
+  
+  for(my $i=0;$i<=$count;$i++) {
+     addToDevAttrList($name,"AM_levelDescr".$i.":textField-long");
+  }
   return undef;
 }
 
@@ -1005,6 +1026,7 @@ sub doUserCommands($$) {
                   "%NUMBER"       => $hash->{helper}{number},
                   "%SENSOR"       => ReadingsVal($name,"triggerDevice","-"),
                   "%ALIAS"        => AttrVal(ReadingsVal($name,"triggerDevice","-"),"alias",ReadingsVal($name,"triggerDevice","-")),
+                  "%DESCR"        => AttrVal($name,"AM_levelDescr".ReadingsVal($name,"level",0),""),
   );
   
   my $final_cmd = EvalSpecials($commands, %specials);
@@ -1361,11 +1383,13 @@ sub getMessageDeviceNames($$$) {
   my $alias = AttrVal($devName,"alias",$devName);
   my $sensoralias = AttrVal($devName,"alias",$devName).($alias eq $devName?"":" (".$devName.")");
   my $count = ReadingsVal($hash->{NAME},"countEvents_".$devName,"");
+  my $descr = AttrVal($hash->{NAME},"AM_levelDescr".ReadingsVal($hash->{NAME},"level",0),"");
   
   $message =~ s/\$SENSOR/$devName/;
   $message =~ s/\$ALIAS/$alias/;
   $message =~ s/\$SENSORALIAS/$sensoralias/;
   $message =~ s/\$COUNT/$count/;
+  $message =~ s/\$DESCR/$descr/;
   
   return $message;
 }
