@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.4.6.5";
+my $version = "0.4.6.6";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -274,7 +274,7 @@ sub Set($@) {
 	
 	return join(" ", @sets) if (defined($cmd) && $cmd eq "?");
 	
-	if (IsDisabled($name) && $cmd !~ /^(active|inactive|.*assword)?$/) {
+	if (IsDisabled($name) && $cmd !~ /^(active|inactive|.*assword.)?$/) {
     Log3 $name, 3, "AlarmControl [$name]: Device is disabled at set Device $cmd";
     return "Device is disabled. Enable it on order to use command ".$cmd;
   }
