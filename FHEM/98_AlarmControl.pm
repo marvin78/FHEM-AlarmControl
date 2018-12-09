@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.4.6.6";
+my $version = "0.4.6.8";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -204,7 +204,7 @@ sub Define($$) {
     CommandAttr( undef, $name . ' AM_offMsg Die Alarmanlage wurde erfolgreich ausgeschaltet!' ) if ( AttrVal( $name, 'AM_offTMsg', -1 ) eq -1 );
     CommandAttr( undef, $name . ' AM_onMsg Die Alarmanlage wurde scharf gestellt!' ) if ( AttrVal( $name, 'AM_onTMsg', -1 ) eq -1 );
     CommandAttr( undef, $name . ' AM_warnTextPrefix Achtung!' ) if ( AttrVal( $name, 'AM_warnTextPrefix', -1 ) eq -1 );
-    CommandAttr( undef, $name . ' AM_deneyTextPrefix Die Alarmanlage konnte nicht eingeschaltet werden!' ) if ( AttrVal( $name, 'AM_denyTextPrefix', -1 ) eq -1 );
+    CommandAttr( undef, $name . ' AM_denyTextPrefix Die Alarmanlage konnte nicht eingeschaltet werden!' ) if ( AttrVal( $name, 'AM_denyTextPrefix', -1 ) eq -1 );
     
     my $index = $hash->{TYPE}."_".$hash->{NAME}."_passwd";
 	  my ($err, $password) = getKeyValue($index);
@@ -552,7 +552,7 @@ sub Attr(@) {
 	
 	if ( $attrName eq "AM_armLevelCount") {
 	  if ( $cmd eq "set" && $attrVal ne "0" && $init_done) {
-	    getAlarmStepAttrs($hash);
+	    InternalTimer(gettimeofday()+0.5, "AlarmControl::getAlarmStepAttrs", $hash, 0);
 	  }
 	}
 	
