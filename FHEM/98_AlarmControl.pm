@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.4.7.3";
+my $version = "0.4.8.6";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -61,7 +61,8 @@ $armSteps{5}{"sub"}                   =   "alarm";
 $armSteps{5}{"attributes"}            =   "AM_step6Delay ".
                                           "AM_step6DelaySilent:1,0 ".
                                           "AM_triggeredCmds:textField-long ".       #level:FHEM commands
-                                          "AM_triggeredCountdownCmds:textField-long ";
+                                          "AM_triggeredCountdownCmds:textField-long ".
+                                          "AM_triggeredNotifyDevs:textField-long "; # devspec
 $armSteps{5}{"cmdAttribute"}          =   "AM_triggeredCmds";
                                           
 $armSteps{6}{"state"}                 =   "alarm";
@@ -394,6 +395,7 @@ sub Notify($$) {
 		getSensors($hash,"AM_armStatesWarn");
 		getSensors($hash,"AM_allowedUnarmEvents");
 		getSensors($hash,"AM_notifyEvents");
+		getSensors($hash,"AM_triggeredNotifyDevs");
 		getAlarmStepAttrs($hash);
 		## get the commands for each level and step
 		foreach my $key (keys %armSteps) {
@@ -490,6 +492,32 @@ sub Notify($$) {
         }
         
       }
+      # gather events from devices while triggered
+      if ($state eq "triggered" && !IsDisabled($name)) {
+        
+        if (defined($hash->{helper}{triggeredNotifyDevs}{$level})) {
+          # get the notify sensors
+          my %sensors = %{$hash->{helper}{triggeredNotifyDevs}{$level}};
+          
+          my @sens = keys %sensors;
+          
+          Log3 $name,5, "AlarmControl [$name]: Triggered Notify Sensors: ".Dumper(%sensors)." - ".Dumper(@sens);
+          
+          if (defined($hash->{helper}{triggeredNotifyDevs}{$level}{$devName}{event}) && 
+              grep(m/^$hash->{helper}{triggeredNotifyDevs}{$level}{$devName}{event}$/, @{$events}) &&
+              inArray(\@sens,$devName)) {
+                
+            my @ev = @{$events};
+          
+            ## trigger device into ReadingsVal        
+            readingsSingleUpdate($hash,"triggeredNotifyDevice",$devName,1);
+            
+            Log3 $name,4, "AlarmControl [$name]: Got triggered notify event from device ".$devName.": ".$ev[0];
+            
+          }
+          
+        }
+      }
     }
     # do something when certain countdown values are reached
     if ($dev->{NAME} eq $name) {
@@ -530,7 +558,7 @@ sub Attr(@) {
   }
     
   #get NotifyDev
-	if ( $attrName =~ /^AM_(sensors|(allowedUnarm|notify)Events|armStates(Deny|Warn))$/ ) {
+	if ( $attrName =~ /^AM_(sensors|(allowedUnarm|notify)Events|armStates(Deny|Warn)|triggeredNotifyDevs)$/ ) {
 	
 		if ( $cmd eq "set" && $attrVal ne "0" && $init_done) {
 			
@@ -538,6 +566,7 @@ sub Attr(@) {
 			
 		}
 	}
+
 	
 	if ( $attrName =~ /^AM_alarmStep.|(o(n|ff)(.*)|triggered|arming|disarmError)?(Countdown)?Cmds$/) {
     if ( $cmd eq "set" && $attrVal ne "0" && $init_done) {
@@ -667,10 +696,12 @@ sub getSensors($$;$) {
 
 
 # make NotifyDev
-sub getNotifyDev($;$) {
-  my ($hash,$level) = @_;
+sub getNotifyDev($;$$) {
+  my ($hash,$level,$step) = @_;
   
   my $name = $hash->{NAME};
+  
+  $step = 1 if (!defined($step));
   
   my %sensors;
   my %sensors2;
@@ -682,24 +713,36 @@ sub getNotifyDev($;$) {
   
   my $notifyDev = "global,".$name;
   
-  if (defined($hash->{helper}{sensors}{$level})) {
+  if ($step < 5) {
   
-    # all sensors for Alarm
-    %sensors = %{$hash->{helper}{sensors}{$level}};
-  
-  }
-  # add unarm devices, if available
-  if (defined($hash->{helper}{allowedUnarmEvents}{$level})) {
+    if (defined($hash->{helper}{sensors}{$level})) {
     
-    # add unarm devices, we would need their events too (merge)
-    %sensors=( %{$hash->{helper}{allowedUnarmEvents}{$level}}, %sensors);
-  }
-  
-   # add notify  devices, we would need their events too (merge)
-  if (defined($hash->{helper}{notifyEvents}{$level})) {
+      # all sensors for Alarm
+      %sensors = %{$hash->{helper}{sensors}{$level}};
     
-    # add unarm devices, we would need their events too (merge)
-    %sensors=( %{$hash->{helper}{notifyEvents}{$level}}, %sensors);
+    }
+    # add unarm devices, if available
+    if (defined($hash->{helper}{allowedUnarmEvents}{$level})) {
+      
+      # add unarm devices, we would need their events too (merge)
+      %sensors=( %{$hash->{helper}{allowedUnarmEvents}{$level}}, %sensors);
+    }
+    
+     # add notify  devices, we would need their events too (merge)
+    if (defined($hash->{helper}{notifyEvents}{$level})) {
+      
+      # add unarm devices, we would need their events too (merge)
+      %sensors=( %{$hash->{helper}{notifyEvents}{$level}}, %sensors);
+    }
+  }
+  else {
+    ## get sensors that should trigger notify after triggering AM_sensorsif (defined($hash->{helper}{sensors}{$level})) {
+    if (defined($hash->{helper}{triggeredNotifyDevs}{$level})) {
+    
+      # all sensors for Alarm
+      %sensors = %{$hash->{helper}{triggeredNotifyDevs}{$level}};
+    
+    }
   }
   
   # only the keys (device names)
@@ -708,6 +751,8 @@ sub getNotifyDev($;$) {
   # build the NotifyDev on the fly
   $notifyDev .= ",".join(",",@sens);
   $hash->{NOTIFYDEV} = $notifyDev;
+  
+  Log3 $name,4, "AlarmControl [$name]: Changed NotifyDev to ".$notifyDev;
   
   return undef;
 }
@@ -907,6 +952,10 @@ sub doAlarm($;$$) {
   my $level = ReadingsVal($name,"level",1);
   
   $hash->{helper}{commandText} = $hash->{helper}{sensors}{$level}{ReadingsVal($name,"triggerDevice","-")}{text};
+  
+  if ($step >= 5) {
+    getNotifyDev($hash,$level,$step);
+  }
   
   if ($step>=6) {
     Log3 $name,3, "AlarmControl [$name]: ALARM!";
