@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.4.7.2";
+my $version = "0.4.7.3";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -103,8 +103,7 @@ sub AlarmControl_Initialize($) {
 											    "AM_armLevelCount:1,2,3,4,5,6,7,8,9,10 ".
                           "AM_sensors:textField-long ".                             #level:devspec|eventRegex|text ($ALIAS,$SENSOR,$SENSORALIAS)
                           "AM_notifyEvents:textField-long ".                        #level:devspec|eventRegex|text ($ALIAS,$SENSOR,$SENSORALIAS,$COUNT,$PLURALE,$PLURALS)
-                          "AM_disarmErrorCmds:textField-long ".                     #FHEM commands
-                          "AM_disarmErrorText:textField-long ".                     
+                          "AM_disarmErrorCmds:textField-long ".                     #FHEM commands               
                           $armSteps{-1}{"attributes"}.
                           $armSteps{1}{"attributes"}.
                           $armSteps{2}{"attributes"}.
