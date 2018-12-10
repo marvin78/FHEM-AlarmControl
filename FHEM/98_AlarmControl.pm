@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.4.6.8";
+my $version = "0.4.7.2";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -103,6 +103,8 @@ sub AlarmControl_Initialize($) {
 											    "AM_armLevelCount:1,2,3,4,5,6,7,8,9,10 ".
                           "AM_sensors:textField-long ".                             #level:devspec|eventRegex|text ($ALIAS,$SENSOR,$SENSORALIAS)
                           "AM_notifyEvents:textField-long ".                        #level:devspec|eventRegex|text ($ALIAS,$SENSOR,$SENSORALIAS,$COUNT,$PLURALE,$PLURALS)
+                          "AM_disarmErrorCmds:textField-long ".                     #FHEM commands
+                          "AM_disarmErrorText:textField-long ".                     
                           $armSteps{-1}{"attributes"}.
                           $armSteps{1}{"attributes"}.
                           $armSteps{2}{"attributes"}.
@@ -204,7 +206,7 @@ sub Define($$) {
     CommandAttr( undef, $name . ' AM_offMsg Die Alarmanlage wurde erfolgreich ausgeschaltet!' ) if ( AttrVal( $name, 'AM_offTMsg', -1 ) eq -1 );
     CommandAttr( undef, $name . ' AM_onMsg Die Alarmanlage wurde scharf gestellt!' ) if ( AttrVal( $name, 'AM_onTMsg', -1 ) eq -1 );
     CommandAttr( undef, $name . ' AM_warnTextPrefix Achtung!' ) if ( AttrVal( $name, 'AM_warnTextPrefix', -1 ) eq -1 );
-    CommandAttr( undef, $name . ' AM_denyTextPrefix Die Alarmanlage konnte nicht eingeschaltet werden!' ) if ( AttrVal( $name, 'AM_denyTextPrefix', -1 ) eq -1 );
+    CommandAttr( undef, $name . ' AM_denyTextPrefix Warnung: Die Alarmanlage konnte nicht eingeschaltet werden!' ) if ( AttrVal( $name, 'AM_denyTextPrefix', -1 ) eq -1 );
     
     my $index = $hash->{TYPE}."_".$hash->{NAME}."_passwd";
 	  my ($err, $password) = getKeyValue($index);
@@ -220,7 +222,8 @@ sub Define($$) {
 	
     RemoveInternalTimer($hash);
 
-    
+    $hash->{helper}{wrongPwd} = "";
+    $hash->{helper}{commandText} = "";
     
     return undef;
 }
@@ -402,6 +405,9 @@ sub Notify($$) {
 		if (AttrVal($name,"AM_triggeredCountdownCmds","-") ne "-") {
 		  getCommands($hash,"AM_triggeredCountdownCmds",AttrVal($name,"AM_triggeredCountdownCmds","-"),AttrVal($name,"AM_step6Delay",240));
 		}
+		if (AttrVal($name,"AM_disarmErrorCmds","-") ne "-") {
+		  getCommands($hash,"AM_disarmErrorCmds",AttrVal($name,"AM_disarmErrorCmds","-"),"-");
+		}
 	}
 	else {
     
@@ -534,7 +540,7 @@ sub Attr(@) {
 		}
 	}
 	
-	if ( $attrName =~ /^AM_alarmStep.|(o(n|ff)(.*)|triggered|arming)?(Countdown)?Cmds$/) {
+	if ( $attrName =~ /^AM_alarmStep.|(o(n|ff)(.*)|triggered|arming|disarmError)?(Countdown)?Cmds$/) {
     if ( $cmd eq "set" && $attrVal ne "0" && $init_done) {
       
       getCommands($hash,$attrName,$attrVal);
@@ -602,7 +608,7 @@ sub getCommands($$;$$) {
       foreach my $level (@levels) {
         
         # split level from cmds
-        my @lev = split(/:/,$level,2) if ($attrName ne "AM_offCmds" && $attrName ne "AM_triggeredCmds");
+        my @lev = split(/:/,$level,2) if ($attrName !~ /^AM_(off|triggered|disarmError)Cmds$/);
         
         if (!defined ($hash->{helper}{cmds}{$attrName}{$i})) {
         
@@ -791,8 +797,13 @@ sub doOff($$$;$$) {
   
   }
   else {
-    my $error="Wrong passcode";
+    my $error="Wrong passcode: ".$arg;
     error($hash,$name,$error,1);
+    
+    # cache for false password
+    $hash->{helper}{wrongPwd} = $arg;
+    
+    doPasswordError($hash,$name);
 	}
   
   return undef;
@@ -1050,6 +1061,7 @@ sub doUserCommands($$) {
                   "%SENSOR"       => ReadingsVal($name,"triggerDevice","-"),
                   "%ALIAS"        => AttrVal(ReadingsVal($name,"triggerDevice","-"),"alias",ReadingsVal($name,"triggerDevice","-")),
                   "%DESCR"        => AttrVal($name,"AM_levelDescr".ReadingsVal($name,"level",0),""),
+                  "%PWD"          => $hash->{helper}{wrongPwd},
   );
   
   my $final_cmd = EvalSpecials($commands, %specials);
@@ -1059,7 +1071,9 @@ sub doUserCommands($$) {
   Log3 $name, 4, "AlarmControl [$name]: Executed commands $commands";
   Log3 $name, 2, "AlarmControl [$name]: Got error by excecuting $commands: ".$errors if ($errors);
   
-  $hash->{helper}{commandText}="";
+  $hash->{helper}{commandText} = "" if (defined($hash->{helper}{commandText}));
+  
+  $hash->{helper}{wrongPwd} = "" if (defined($hash->{helper}{wrongPwd}));
   
   return undef;
 }
@@ -1095,6 +1109,17 @@ sub doNotifyEvent($$$$) {
     $hash->{helper}{notifyText}{$devName} = $message;
   }
  
+  
+  return undef;
+}
+
+# error if unarm tried with wrog password
+sub doPasswordError($$) {
+  my ($hash,$name) = @_;
+  
+  # do commands for unarm Error
+  my $commands = AttrVal($name,"AM_disarmErrorCmds","-");
+  doUserCommands($hash,$commands) if ($commands ne "-");
   
   return undef;
 }
