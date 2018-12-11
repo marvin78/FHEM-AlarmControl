@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.4.8.6";
+my $version = "0.5.0.1";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -20,7 +20,7 @@ $armSteps{-1}{"state"}                =   "off";
 $armSteps{-1}{"sub"}                  =   "off";
 $armSteps{-1}{"attributes"}           =   "AM_allowedUnarmEvents:textField-long ".  #level:devspec|eventRegex|text ($ALIAS,$SENSOR,$SENSORALIAS)
                                           "AM_offMsg:textField-long ".
-                                          "AM_offCmds:textField-long ";             #FHEM commands
+                                          "AM_offCmds:textField-long ";             #FHEM commands 
 $armSteps{-1}{"cmdAttribute"}         =   "AM_offCmds";                               
 
 $armSteps{1}{"state"}                 =   "arming";
@@ -512,6 +512,8 @@ sub Notify($$) {
             ## trigger device into ReadingsVal        
             readingsSingleUpdate($hash,"triggeredNotifyDevice",$devName,1);
             
+            gatherEvents($hash,$name,"triggeredNotifyDevs",$devName,@ev);
+            
             Log3 $name,4, "AlarmControl [$name]: Got triggered notify event from device ".$devName.": ".$ev[0];
             
           }
@@ -952,10 +954,7 @@ sub doAlarm($;$$) {
   my $level = ReadingsVal($name,"level",1);
   
   $hash->{helper}{commandText} = $hash->{helper}{sensors}{$level}{ReadingsVal($name,"triggerDevice","-")}{text};
-  
-  if ($step >= 5) {
-    getNotifyDev($hash,$level,$step);
-  }
+ 
   
   if ($step>=6) {
     Log3 $name,3, "AlarmControl [$name]: ALARM!";
@@ -971,6 +970,10 @@ sub doAlarm($;$$) {
   
   if ($plusStep>=7) {
     resetCounter($hash);
+  }
+  
+  if ($step >= 5) {
+    getNotifyDev($hash,$level,$step);
   }
   
   if ($plusStep>$armSteps{-1}{"count"}) {
@@ -1100,6 +1103,15 @@ sub doUserCommands($$) {
   my ($hash,$commands) = @_;
   my $name = $hash->{NAME}; 
   
+  # Trigger Notify Devices
+  my $TND = "";
+  
+  if (defined($hash->{helper}{triggeredNotifyDevs}{events})) {
+    my %sensors = %{$hash->{helper}{triggeredNotifyDevs}{events}};
+    my @sens = keys %sensors;
+    
+    $TND = join("|", @sens);
+  }
   
   # we process certain special variables in the commands
   my %specials = (
@@ -1110,6 +1122,7 @@ sub doUserCommands($$) {
                   "%ALIAS"        => AttrVal(ReadingsVal($name,"triggerDevice","-"),"alias",ReadingsVal($name,"triggerDevice","-")),
                   "%DESCR"        => AttrVal($name,"AM_levelDescr".ReadingsVal($name,"level",0),""),
                   "%PWD"          => $hash->{helper}{wrongPwd},
+                  "%TND"          => $TND,
   );
   
   my $final_cmd = EvalSpecials($commands, %specials);
@@ -1170,6 +1183,21 @@ sub doPasswordError($$) {
   doUserCommands($hash,$commands) if ($commands ne "-");
   
   return undef;
+}
+
+sub gatherEvents($$$$@) {
+  my ($hash,$name,$attr,$devName,@ev) = @_;
+  
+  if (@ev) {
+    
+    foreach my $event (@ev) {
+      $hash->{helper}{$attr}{events}{$devName} = $event;
+      
+    }
+  }
+  
+  
+  return undef; 
 }
 
 # warn or deny if certain devices have certain states
@@ -1313,6 +1341,7 @@ sub deleteHelpers($) {
   delete($hash->{helper}{notifyText}) if (defined($hash->{helper}{notifyText}));
   delete($hash->{helper}{alarmText}) if (defined($hash->{helper}{alarmText}));
   delete($hash->{helper}{doOff});
+  delete ($hash->{helper}{triggeredNotifyDevs}{events});
   CommandDeleteReading(undef,$hash->{NAME}." countEvents_.*");
     
   return undef;
