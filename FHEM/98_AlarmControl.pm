@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.5.0.1";
+my $version = "0.5.0.2";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -20,7 +20,7 @@ $armSteps{-1}{"state"}                =   "off";
 $armSteps{-1}{"sub"}                  =   "off";
 $armSteps{-1}{"attributes"}           =   "AM_allowedUnarmEvents:textField-long ".  #level:devspec|eventRegex|text ($ALIAS,$SENSOR,$SENSORALIAS)
                                           "AM_offMsg:textField-long ".
-                                          "AM_offCmds:textField-long ";             #FHEM commands 
+                                          "AM_offCmds:textField-long ";             #FHEM commands - special $TND = triggeredNotifyDevices as or-Regex (example: DEVICE1|DEVICE2)
 $armSteps{-1}{"cmdAttribute"}         =   "AM_offCmds";                               
 
 $armSteps{1}{"state"}                 =   "arming";
@@ -642,12 +642,12 @@ sub getCommands($$;$$) {
         
         if (!defined ($hash->{helper}{cmds}{$attrName}{$i})) {
         
-          $hash->{helper}{cmds}{$attrName}{$lev[0]} = $lev[1]?$lev[1]:"-" if ($i == $lev[0] && $lev[1]);
+          $hash->{helper}{cmds}{$attrName}{$lev[0]} = $lev[1]?$lev[1]:"-" if ($i eq $lev[0] && $lev[1]);
           $hash->{helper}{cmds}{$attrName}{$i} = $level?$level:"-" if (!$lev[1]);
           
         }
         else {
-          $hash->{helper}{cmds}{$attrName}{$lev[0]} .=";". $lev[1] if ($i == $lev[0] && $lev[1]);
+          $hash->{helper}{cmds}{$attrName}{$lev[0]} .=";". $lev[1] if ($i eq $lev[0] && $lev[1]);
           $hash->{helper}{cmds}{$attrName}{$i} .= ";".$level if (!$lev[1]);
         }
       }
