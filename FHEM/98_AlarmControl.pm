@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.5.0.2";
+my $version = "0.5.0.4";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -642,12 +642,12 @@ sub getCommands($$;$$) {
         
         if (!defined ($hash->{helper}{cmds}{$attrName}{$i})) {
         
-          $hash->{helper}{cmds}{$attrName}{$lev[0]} = $lev[1]?$lev[1]:"-" if ($i eq $lev[0] && $lev[1]);
+          $hash->{helper}{cmds}{$attrName}{$lev[0]} = $lev[1]?$lev[1]:"-" if ($lev[0] && $lev[1] && $i eq $lev[0]);
           $hash->{helper}{cmds}{$attrName}{$i} = $level?$level:"-" if (!$lev[1]);
           
         }
         else {
-          $hash->{helper}{cmds}{$attrName}{$lev[0]} .=";". $lev[1] if ($i eq $lev[0] && $lev[1]);
+          $hash->{helper}{cmds}{$attrName}{$lev[0]} .=";". $lev[1] if ($lev[0] && $lev[1] && $i eq $lev[0]);
           $hash->{helper}{cmds}{$attrName}{$i} .= ";".$level if (!$lev[1]);
         }
       }
@@ -687,8 +687,9 @@ sub getSensors($$;$) {
       
       foreach my $sensor (@sensors) {
 
-          $hash->{helper}{$helperName}{$lev[0]}{$sensor}{text}=$sens[2] if (defined($sens[2]));
-          $hash->{helper}{$helperName}{$lev[0]}{$sensor}{event}=$sens[1];
+          $hash->{helper}{$helperName}{$lev[0]}{$sensor}{text} = $sens[2] if (defined($sens[2]));
+          $hash->{helper}{$helperName}{$lev[0]}{$sensor}{event} = $sens[1];
+          $hash->{helper}{$helperName}{$lev[0]}{$sensor}{alarmInterval} = $sens[3] if (defined($sens[3]));
 
       }
     }
@@ -966,7 +967,11 @@ sub doAlarm($;$$) {
             
   my $plusStep = $step+1;
               
-  my $wait = AttrVal($name,"AM_step".$plusStep."Delay",3);
+  my $wait = AttrVal($name,"AM_step".$plusStep."Delay",30);
+  
+  if ($step==5 && defined($hash->{helper}{sensors}{$level}{ReadingsVal($name,"triggerDevice","-")}{alarmInterval})) {
+    $wait = $hash->{helper}{sensors}{$level}{ReadingsVal($name,"triggerDevice","-")}{alarmInterval};
+  }
   
   if ($plusStep>=7) {
     resetCounter($hash);
