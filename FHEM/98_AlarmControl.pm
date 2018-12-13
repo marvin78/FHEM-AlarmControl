@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.5.0.4";
+my $version = "0.5.1.2";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -581,7 +581,8 @@ sub Attr(@) {
 	if ( $attrName eq "AM_step6Delay") {
 	  if ( $cmd eq "set" && $attrVal ne "0" && $init_done) {
       
-      getCommands($hash,"AM_triggeredCountdownCmds",AttrVal($name,"AM_triggeredCountdownCmds",240),$attrVal);
+     
+      InternalTimer(gettimeofday()+0.3, "AlarmControl::getHighIntervalStep6", $hash, 0);
       
     }
 	}
@@ -615,7 +616,9 @@ sub getCommands($$;$$) {
       # time seconds from cmds
       my @lev = split(/:/,$level,2);
       
+      $wait = $hash->{helper}{highIntervalStep6} if ($hash->{helper}{highIntervalStep6});
       $wait = AttrVal($name,"AM_step6Delay",240) if (!defined($wait));
+      
       
       for(my $i=0;$i<=$wait;$i=$i+$lev[0]) {
       
@@ -653,8 +656,8 @@ sub getCommands($$;$$) {
       }
     }
   }
- 
   
+  InternalTimer(gettimeofday()+0.3, "AlarmControl::getHighIntervalStep6", $hash, 0) if ($attrName ne "AM_triggeredCountdownCmds");
   
   return undef;
 }
@@ -670,6 +673,8 @@ sub getSensors($$;$) {
   $helperName = $helperNames[1] if ($helperNames[1]);
   
   delete ($hash->{helper}{$helperName});
+  
+  my $highInterval = AttrVal($hash->{NAME},"AM_step6Delay",0);
   
   if ($attrVal ne "-") {
     # make helpers for different alarm levels			
@@ -688,13 +693,54 @@ sub getSensors($$;$) {
       foreach my $sensor (@sensors) {
 
           $hash->{helper}{$helperName}{$lev[0]}{$sensor}{text} = $sens[2] if (defined($sens[2]));
-          $hash->{helper}{$helperName}{$lev[0]}{$sensor}{event} = $sens[1];
-          $hash->{helper}{$helperName}{$lev[0]}{$sensor}{alarmInterval} = $sens[3] if (defined($sens[3]));
-
+          $hash->{helper}{$helperName}{$lev[0]}{$sensor}{event} = $sens[1];    
+          $hash->{helper}{$helperName}{$lev[0]}{$sensor}{alarmInterval} = $sens[3] if (defined($sens[3]));      
+         
       }
     }
   }
+  InternalTimer(gettimeofday()+0.3, "AlarmControl::getHighIntervalStep6", $hash, 0);
+  
   getNotifyDev($hash);
+  
+  return undef;
+}
+
+sub getHighIntervalStep6($) {
+  my ($hash) = @_;
+  
+  my $name = $hash->{NAME};
+  
+  my $highInterval  = AttrVal($name,"AM_step6Delay",240);
+  
+  # get levels
+  my $levels = AttrVal($name,"AM_armLevelCount",3);
+  
+  for (my $i=1;$i <= $levels; $i++) {
+    
+    if (defined($hash->{helper}{sensors}{$i})) {
+      # alls sensors for level $i
+      my %sensors = %{$hash->{helper}{sensors}{$i}};
+       
+      # use keys (sensornames) as array
+      my @sens = keys %sensors;
+       
+      foreach my $sensor (@sens) {
+        
+        if (defined($hash->{helper}{sensors}{$i}{$sensor}{alarmInterval})) {
+          $highInterval = $hash->{helper}{sensors}{$i}{$sensor}{alarmInterval} if ($hash->{helper}{sensors}{$i}{$sensor}{alarmInterval} > $highInterval);
+        }
+          
+      }
+    }
+  }
+  
+  $hash->{helper}{highIntervalStep6} = $highInterval;
+  
+  getCommands($hash,"AM_triggeredCountdownCmds");
+  
+  return undef;
+  
 }
 
 
@@ -1083,6 +1129,8 @@ sub doUpdate($$$$;$) {
     $message = getMessageDeviceNames($hash,$triggerDevice,$message);
   }
   
+  my $oldLevel = ReadingsVal($name,"level",$level);
+  
   readingsBeginUpdate($hash);
 		
 		readingsBulkUpdate($hash,"level",$level);
@@ -1093,6 +1141,9 @@ sub doUpdate($$$$;$) {
   readingsEndUpdate($hash, 1);
   
   Log3 $name, 4, "AlarmControl [$name]: set state for $name to $state";
+  
+  # if off, then preserve old Level for command selection
+  $level = $oldLevel if ($level == 0);
   
   # do userCommands
   
