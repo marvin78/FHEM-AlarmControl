@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.5.1.2";
+my $version = "0.5.1.4";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -87,35 +87,38 @@ $armSteps{8}{"cmdAttribute"}          =   "AM_alarmStep3Cmds";
 sub AlarmControl_Initialize($) {
   my ($hash) = @_;
 
-  $hash->{SetFn}      =   "AlarmControl::Set";
-  $hash->{GetFn}      =   "AlarmControl::Get";
-  $hash->{DefFn}      =   "AlarmControl::Define";
-  $hash->{NotifyFn}   =   "AlarmControl::Notify";
-  $hash->{UndefFn}    =   "AlarmControl::Undefine";
-  $hash->{DeleteFn}   =   "AlarmControl::Delete";
-	$hash->{AttrFn}     =   "AlarmControl::Attr";
-	$hash->{onFn}       =   "AlarmControl::doOn";
-	$hash->{offFn}      =   "AlarmControl::doOff";
-	$hash->{alarmFn}    =   "AlarmControl::doAlarm";
+  $hash->{SetFn}        =   "AlarmControl::Set";
+  $hash->{GetFn}        =   "AlarmControl::Get";
+  $hash->{DefFn}        =   "AlarmControl::Define";
+  $hash->{NotifyFn}     =   "AlarmControl::Notify";
+  $hash->{UndefFn}      =   "AlarmControl::Undefine";
+  $hash->{DeleteFn}     =   "AlarmControl::Delete";
+	$hash->{AttrFn}       =   "AlarmControl::Attr";
+	$hash->{onFn}         =   "AlarmControl::doOn";
+	$hash->{offFn}        =   "AlarmControl::doOff";
+	$hash->{alarmFn}      =   "AlarmControl::doAlarm";
+	#$hash->{FW_detailFn}  =   "AlarmControl::detailFn";
+	$hash->{FW_summaryFn} =   "AlarmControl::summaryFn";
 	
 	
-  $hash->{AttrList}   =   #"disable:1,0 ".
-											    #"disabledForIntervals ".
-											    "AM_armLevelCount:1,2,3,4,5,6,7,8,9,10 ".
-                          "AM_sensors:textField-long ".                             #level:devspec|eventRegex|text ($ALIAS,$SENSOR,$SENSORALIAS)
-                          "AM_notifyEvents:textField-long ".                        #level:devspec|eventRegex|text ($ALIAS,$SENSOR,$SENSORALIAS,$COUNT,$PLURALE,$PLURALS)
-                          "AM_disarmErrorCmds:textField-long ".                     #FHEM commands               
-                          $armSteps{-1}{"attributes"}.
-                          $armSteps{1}{"attributes"}.
-                          $armSteps{2}{"attributes"}.
-                          $armSteps{3}{"attributes"}.
-                          $armSteps{4}{"attributes"}.
-                          $armSteps{5}{"attributes"}.
-                          $armSteps{6}{"attributes"}.
-                          $armSteps{7}{"attributes"}.
-                          $armSteps{8}{"attributes"}.
-                          "userattr:textField-long ".
-											    $readingFnAttributes;
+  $hash->{AttrList}     =   #"disable:1,0 ".
+											      #"disabledForIntervals ".
+											      "AM_armLevelCount:1,2,3,4,5,6,7,8,9,10 ".
+                            "AM_sensors:textField-long ".                             #level:devspec|eventRegex|text ($ALIAS,$SENSOR,$SENSORALIAS)
+                            "AM_notifyEvents:textField-long ".                        #level:devspec|eventRegex|text ($ALIAS,$SENSOR,$SENSORALIAS,$COUNT,$PLURALE,$PLURALS)
+                            "AM_disarmErrorCmds:textField-long ".                     #FHEM commands 
+                            "AM_showDetailWidget:1,0 ".              
+                            $armSteps{-1}{"attributes"}.
+                            $armSteps{1}{"attributes"}.
+                            $armSteps{2}{"attributes"}.
+                            $armSteps{3}{"attributes"}.
+                            $armSteps{4}{"attributes"}.
+                            $armSteps{5}{"attributes"}.
+                            $armSteps{6}{"attributes"}.
+                            $armSteps{7}{"attributes"}.
+                            $armSteps{8}{"attributes"}.
+                            "userattr:textField-long ".
+											      $readingFnAttributes;
 											  
 	$hash->{NotifyOrderPrefix} = "11-";    # order number NotifyFn
 	
@@ -177,7 +180,10 @@ BEGIN {
           getKeyValue
           setKeyValue
           getUniqueId
-          CallFn)
+          CallFn
+          FW_ME
+          FW_dev2image
+          FW_makeImage)
     );
 }
 
@@ -785,7 +791,7 @@ sub getNotifyDev($;$$) {
     }
   }
   else {
-    ## get sensors that should trigger notify after triggering AM_sensorsif (defined($hash->{helper}{sensors}{$level})) {
+    ## get sensors that should trigger notify after triggering AM_sensors
     if (defined($hash->{helper}{triggeredNotifyDevs}{$level})) {
     
       # all sensors for Alarm
@@ -1579,6 +1585,51 @@ sub getMessageDeviceNames($$$) {
   return $message;
 }
     
+    
+# show widget in detail view of todoist device
+sub detailFn(){
+  my ($FW_wname, $devname, $room, $pageHash) = @_; # pageHash is set for summaryFn.
+
+  my $hash = $defs{$devname};
+  my $name=$hash->{NAME};
+  
+  Log3 $name, 4, "[$name] - summaryFn called - FW_wname: $FW_wname, device: $devname, room: $room";
+  
+  $hash->{mayBeVisible} = 1;
+ 
+  
+  return undef; # if (IsDisabled($name) || AttrVal($name,"AM_showDetailWidget",1)!=1);
+ 
+  
+  return detailHtml($hash,$name,1);
+}
+
+sub summaryFn ($$$$) {
+  my ($FW_wname, $devname, $room, $pageHash) = @_;   # pageHash is set for summaryFn in FHEMWEB
+  
+  my $hash   = $defs{$devname};
+  my $name=$hash->{NAME};
+  
+  Log3 $name, 4, "[$name] - summaryFn called - FW_wname: $FW_wname, device: $devname, room: $room";
+  
+  return detailHtml($hash,$name,1);
+}
+
+sub detailHtml($$;$) {
+  my ($hash,$name,$detail) = @_;
+  
+
+  
+  my $ret = "";
+  my $rot = "";
+  
+  $rot .= "<script type=\"text/javascript\" src=\"$FW_ME/www/pgm2/AlarmControl.js?version=".$version."\"></script>";
+  
+  $ret .= FW_makeImage(FW_dev2image($name),"Test");
+  
+  return $rot.$ret;
+  
+}
     
 1;
 
