@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.5.1.4";
+my $version = "0.5.1.7";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -98,7 +98,7 @@ sub AlarmControl_Initialize($) {
 	$hash->{offFn}        =   "AlarmControl::doOff";
 	$hash->{alarmFn}      =   "AlarmControl::doAlarm";
 	#$hash->{FW_detailFn}  =   "AlarmControl::detailFn";
-	$hash->{FW_summaryFn} =   "AlarmControl::summaryFn";
+	#$hash->{FW_summaryFn} =   "AlarmControl::summaryFn";
 	
 	
   $hash->{AttrList}     =   #"disable:1,0 ".
@@ -1387,7 +1387,7 @@ sub resetCounter($) {
   readingsBeginUpdate($hash);
   
     readingsBulkUpdate($hash,"countdown",0);
-		readingsBulkUpdate($hash,"countdownH",0);
+		readingsBulkUpdate($hash,"countdownH","00:00");
     readingsBulkUpdate($hash,"countdownTTS",0);
   
   readingsEndUpdate($hash, 1);
@@ -1586,7 +1586,7 @@ sub getMessageDeviceNames($$$) {
 }
     
     
-# show widget in detail view of todoist device
+# show widget in detail view of AM device
 sub detailFn(){
   my ($FW_wname, $devname, $room, $pageHash) = @_; # pageHash is set for summaryFn.
 
@@ -1625,7 +1625,11 @@ sub detailHtml($$;$) {
   
   $rot .= "<script type=\"text/javascript\" src=\"$FW_ME/www/pgm2/AlarmControl.js?version=".$version."\"></script>";
   
-  $ret .= FW_makeImage(FW_dev2image($name),"Test");
+  
+  
+  #$ret .= FW_makeImage(FW_dev2image($name),"Test");
+  
+  #$ret .= 'Test';
   
   return $rot.$ret;
   
