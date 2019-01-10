@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.5.1.7";
+my $version = "0.5.1.9";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -920,7 +920,7 @@ sub doOn($;$$$) {
   
   my $state = ReadingsVal($name,"state","off");
   
-  doUpdate($hash,$arg,$armSteps{$step}{state},$step,AttrVal($name,"AM_onMsg","none"));
+  doUpdate($hash,$arg,$armSteps{$step}{state},$step,AttrVal($name,"AM_onMsg","none")) if ($state ne "off");
   
   $step = ReadingsVal($name,"step",2)+1;
   
@@ -1146,16 +1146,19 @@ sub doUpdate($$$$;$) {
   
   readingsEndUpdate($hash, 1);
   
-  Log3 $name, 4, "AlarmControl [$name]: set state for $name to $state";
+  Log3 $name, 4, "AlarmControl [$name]: set state for $name to $state" if (defined($state));
   
   # if off, then preserve old Level for command selection
   $level = $oldLevel if ($level == 0);
   
   # do userCommands
   
-  my $commands = $hash->{helper}{cmds}{$armSteps{$step}{"cmdAttribute"}}{$level};
-  
-  doUserCommands($hash,$commands) if ($commands && (!defined($message) || (defined($message) && $message ne "noUserCommand")));
+  Log3 $name, 5, "AlarmControl [$name]: $level,$step,".$hash->{helper}{cmds}{$armSteps{$step}{"cmdAttribute"}}{$level};
+  if (defined($level) && defined($step) && defined($hash->{helper}{cmds}{$armSteps{$step}{"cmdAttribute"}}{$level})) {
+    my $commands = $hash->{helper}{cmds}{$armSteps{$step}{"cmdAttribute"}}{$level};
+    
+    doUserCommands($hash,$commands) if ($commands && (!defined($message) || (defined($message) && $message ne "noUserCommand")));
+  }
   
   return undef;
 }
@@ -1178,12 +1181,12 @@ sub doUserCommands($$) {
   # we process certain special variables in the commands
   my %specials = (
                   "%NAME"         => $name,
-                  "%TEXT"         => $hash->{helper}{commandText},
-                  "%NUMBER"       => $hash->{helper}{number},
+                  "%TEXT"         => $hash->{helper}{commandText}?$hash->{helper}{commandText}:"",
+                  "%NUMBER"       => $hash->{helper}{number}?$hash->{helper}{number}:"",
                   "%SENSOR"       => ReadingsVal($name,"triggerDevice","-"),
                   "%ALIAS"        => AttrVal(ReadingsVal($name,"triggerDevice","-"),"alias",ReadingsVal($name,"triggerDevice","-")),
                   "%DESCR"        => AttrVal($name,"AM_levelDescr".ReadingsVal($name,"level",0),""),
-                  "%PWD"          => $hash->{helper}{wrongPwd},
+                  "%PWD"          => $hash->{helper}{wrongPwd}?$hash->{helper}{wrongPwd}:"",
                   "%TND"          => $TND,
   );
   
