@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.5.1.9";
+my $version = "0.5.2.3";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -25,7 +25,7 @@ $armSteps{-1}{"cmdAttribute"}         =   "AM_offCmds";
 
 $armSteps{1}{"state"}                 =   "arming";
 $armSteps{1}{"sub"}                   =   "on";
-$armSteps{1}{"attributes"}            =   "AM_armDelay ".
+$armSteps{1}{"attributes"}            =   "AM_armDelay:textField-long ".
                                           "AM_armingCmds:textField-long ".          #level:FHEM commands
                                           "AM_armStatesWarn:textField-long ".       #level:devspec|perl condition in {}|text ($ALIAS,$SENSOR,$SENSORALIAS)
                                           "AM_armStatesDeny:textField-long ".       #level:devspec|perl condition in {}|text ($ALIAS,$SENSOR,$SENSORALIAS)
@@ -564,6 +564,7 @@ sub Attr(@) {
 
     }
   }
+  
     
   #get NotifyDev
 	if ( $attrName =~ /^AM_(sensors|(allowedUnarm|notify)Events|armStates(Deny|Warn)|triggeredNotifyDevs)$/ ) {
@@ -589,6 +590,15 @@ sub Attr(@) {
       
      
       InternalTimer(gettimeofday()+0.3, "AlarmControl::getHighIntervalStep6", $hash, 0);
+      
+    }
+	}
+	
+	if ( $attrName eq "AM_armDelay") {
+	  if ( $cmd eq "set" && $attrVal ne "0" && $init_done) {
+      
+     
+      InternalTimer(gettimeofday()+0.3, "AlarmControl::getArmDelay", $hash, 0);
       
     }
 	}
@@ -708,6 +718,39 @@ sub getSensors($$;$) {
   InternalTimer(gettimeofday()+0.3, "AlarmControl::getHighIntervalStep6", $hash, 0);
   
   getNotifyDev($hash);
+  
+  return undef;
+}
+
+sub getArmDelay($) {
+  my ($hash) = @_;
+  
+  my $name = $hash->{NAME};
+  
+  my $attrName = "AM_armDelay";
+  
+  delete($hash->{helper}{delay}{$attrName});
+  
+  # get number of levels
+  my $countLevels = AttrVal($name,"AM_armLevelCount",3);
+  for(my $i=1;$i<=$countLevels;$i++) {
+
+    # make helpers for different alarm levels	
+    my @levels = split(/\n/,AttrVal($name,$attrName,240));
+    foreach my $level (@levels) {
+      
+      # split level from cmds
+      my @lev = split(/:/,$level,2);
+
+      
+      $hash->{helper}{delay}{$attrName}{$lev[0]} = $lev[1]?$lev[1]:"-" if ($lev[0] && $lev[1] && $i eq $lev[0]);
+      $hash->{helper}{delay}{$attrName}{$i} = $level?$level:"-" if (!$lev[1]);
+        
+
+    }
+    
+  }
+  
   
   return undef;
 }
@@ -966,6 +1009,10 @@ sub doArm($$$) {
   RemoveInternalTimer($hash);
   
   my $wait = AttrVal($name,"AM_armDelay",240);
+  
+  $wait = $hash->{helper}{delay}{"AM_armDelay"}{$arg} if (defined($hash->{helper}{delay}{"AM_armDelay"}{$arg}));
+  
+  $wait = 1 if ($wait eq "-");
   
   $hash->{helper}{number} = transSecToMin($wait,"tts");
     
