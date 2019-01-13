@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.5.2.3";
+my $version = "0.5.2.7";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -183,7 +183,9 @@ BEGIN {
           CallFn
           FW_ME
           FW_dev2image
-          FW_makeImage)
+          FW_makeImage
+          FW_directNotify
+          notifyRegexpChanged)
     );
 }
 
@@ -682,6 +684,8 @@ sub getCommands($$;$$) {
 sub getSensors($$;$) {
   my ($hash,$attrName,$attrVal) = @_;
   
+  my $name = $hash->{NAME};
+  
   $attrVal = AttrVal($hash->{NAME},$attrName,"-") if (!defined($attrVal));
   
   my $helperName = "AM_sensors";
@@ -689,12 +693,14 @@ sub getSensors($$;$) {
   $helperName = $helperNames[1] if ($helperNames[1]);
   
   delete ($hash->{helper}{$helperName});
+  delete ($hash->{helper}{notifyDev}{$helperName});
   
   my $highInterval = AttrVal($hash->{NAME},"AM_step6Delay",0);
   
   if ($attrVal ne "-") {
     # make helpers for different alarm levels			
   	my @levels = split(/\n/,$attrVal);
+  	my @tempArr;
     foreach my $level (@levels) {
     
       # split level from sensors
@@ -702,6 +708,20 @@ sub getSensors($$;$) {
       
       # split into 3 columns at | but only if | is not inside {} (|| as or)
       my @sens = split(/(?![^{]+\})(?![^(]+\))\|/,$lev[1]);
+      
+      my $tempVar = $lev[0]."_".$sens[0];
+      
+      if (!defined($hash->{helper}{notifyDev}{$helperName}{$lev[0]})) {
+        $hash->{helper}{notifyDev}{$helperName}{$lev[0]} = $sens[0];
+        
+      } 
+      else {
+        if (!inArray(\@tempArr,$tempVar)) {
+          $hash->{helper}{notifyDev}{$helperName}{$lev[0]} .= ",".$sens[0];      
+        }
+      }
+      
+      push @tempArr,$tempVar;
       
       # get all sensors for this line
       my @sensors = devspec2array($sens[0]);
@@ -714,6 +734,7 @@ sub getSensors($$;$) {
          
       }
     }
+    Log3 $name,1, "AlarmControl [$name]: TempArr ".Dumper(@tempArr);
   }
   InternalTimer(gettimeofday()+0.3, "AlarmControl::getHighIntervalStep6", $hash, 0);
   
@@ -801,11 +822,7 @@ sub getNotifyDev($;$$) {
   
   $step = 1 if (!defined($step));
   
-  my %sensors;
-  my %sensors2;
-  my %sensors3;
-  my @sens;
-  
+ 
   # we need the level to get the right devices (only events in this level will be processed)
   $level = ReadingsVal($name,"level",1) if (!defined($level));
   
@@ -813,42 +830,44 @@ sub getNotifyDev($;$$) {
   
   if ($step < 5) {
   
-    if (defined($hash->{helper}{sensors}{$level})) {
+    if (defined($hash->{helper}{notifyDev}{sensors}{$level})) {
     
       # all sensors for Alarm
-      %sensors = %{$hash->{helper}{sensors}{$level}};
+      $notifyDev .= ",".$hash->{helper}{notifyDev}{sensors}{$level};
     
     }
     # add unarm devices, if available
-    if (defined($hash->{helper}{allowedUnarmEvents}{$level})) {
+    if (defined($hash->{helper}{notifyDev}{allowedUnarmEvents}{$level})) {
       
       # add unarm devices, we would need their events too (merge)
-      %sensors=( %{$hash->{helper}{allowedUnarmEvents}{$level}}, %sensors);
+      $notifyDev .= ",".$hash->{helper}{notifyDev}{allowedUnarmEvents}{$level};
     }
     
      # add notify  devices, we would need their events too (merge)
-    if (defined($hash->{helper}{notifyEvents}{$level})) {
+    if (defined($hash->{helper}{notifyDev}{notifyEvents}{$level})) {
       
       # add unarm devices, we would need their events too (merge)
-      %sensors=( %{$hash->{helper}{notifyEvents}{$level}}, %sensors);
+      $notifyDev .= ",".$hash->{helper}{notifyDev}{notifyEvents}{$level};
     }
   }
   else {
     ## get sensors that should trigger notify after triggering AM_sensors
-    if (defined($hash->{helper}{triggeredNotifyDevs}{$level})) {
+    if (defined($hash->{helper}{notifyDev}{triggeredNotifyDevs}{$level})) {
     
       # all sensors for Alarm
-      %sensors = %{$hash->{helper}{triggeredNotifyDevs}{$level}};
+      $notifyDev .= ",".$hash->{helper}{notifyDev}{triggeredNotifyDevs}{$level};
     
     }
   }
   
   # only the keys (device names)
-  @sens = keys %sensors;
+  #@sens = keys %sensors;
   
   # build the NotifyDev on the fly
-  $notifyDev .= ",".join(",",@sens);
   $hash->{NOTIFYDEV} = $notifyDev;
+  #notifyRegexpChanged($hash, $notifyDev);
+  
+  map {FW_directNotify("#FHEMWEB:$_", "location.reload()", "")} devspec2array("TYPE=FHEMWEB");
   
   Log3 $name,4, "AlarmControl [$name]: Changed NotifyDev to ".$notifyDev;
   
@@ -1296,6 +1315,8 @@ sub doPasswordError($$) {
   
   return undef;
 }
+
+
 
 sub gatherEvents($$$$@) {
   my ($hash,$name,$attr,$devName,@ev) = @_;
