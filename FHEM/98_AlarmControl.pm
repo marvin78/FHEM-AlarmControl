@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.5.2.7";
+my $version = "0.5.2.8";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -734,7 +734,7 @@ sub getSensors($$;$) {
          
       }
     }
-    Log3 $name,1, "AlarmControl [$name]: TempArr ".Dumper(@tempArr);
+    Log3 $name,5, "AlarmControl [$name]: TempArr ".Dumper(@tempArr);
   }
   InternalTimer(gettimeofday()+0.3, "AlarmControl::getHighIntervalStep6", $hash, 0);
   
