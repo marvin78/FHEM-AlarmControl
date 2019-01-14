@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.5.3.0";
+my $version = "0.5.3.1";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -1220,8 +1220,9 @@ sub doUpdate($$$$;$) {
   
   # do userCommands
   
-  Log3 $name, 5, "AlarmControl [$name]: $level,$step,".$hash->{helper}{cmds}{$armSteps{$step}{"cmdAttribute"}}{$level};
+ 
   if (defined($level) && defined($step) && defined($hash->{helper}{cmds}{$armSteps{$step}{"cmdAttribute"}}{$level})) {
+    Log3 $name, 5, "AlarmControl [$name]: $level,$step,".$hash->{helper}{cmds}{$armSteps{$step}{"cmdAttribute"}}{$level};
     my $commands = $hash->{helper}{cmds}{$armSteps{$step}{"cmdAttribute"}}{$level};
     
     doUserCommands($hash,$commands) if ($commands && (!defined($message) || (defined($message) && $message ne "noUserCommand")));
