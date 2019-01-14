@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.5.2.8";
+my $version = "0.5.3.0";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -404,6 +404,7 @@ sub Notify($$) {
 		getSensors($hash,"AM_allowedUnarmEvents");
 		getSensors($hash,"AM_notifyEvents");
 		getSensors($hash,"AM_triggeredNotifyDevs");
+		getArmDelay($hash);
 		getAlarmStepAttrs($hash);
 		## get the commands for each level and step
 		foreach my $key (keys %armSteps) {
