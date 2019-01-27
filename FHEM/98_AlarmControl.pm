@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.5.3.1";
+my $version = "0.5.3.3";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -275,6 +275,8 @@ sub Set($@) {
 		$aLevels.=$i;
 	}
 	
+	my $state = ReadingsVal($name,"state","off");
+	
 	# set commmands by filter
 	push @sets, "on:$aLevels" if(!$hash->{helper}{PWD_NEEDED} && ReadingsVal($name,"state","off") eq "off" && !IsDisabled($name));
 	push @sets, "off:textField" if(!$hash->{helper}{PWD_NEEDED} && ReadingsVal($name,"state","off") !~ /^(off|inactive)$/ && !IsDisabled($name));
@@ -311,7 +313,7 @@ sub Set($@) {
 	   
 	    # if device ist active
 	    if (!$hash->{helper}{PWD_NEEDED} && !IsDisabled($name)) {
-	      if (($cmd eq "on" && $args[0] =~/^-?\d+$/ && $args[0]>0 && $args[0]<=AttrVal($name,"AM_armLevelCount",3)) || $cmd eq "off") {
+	      if (($cmd eq "on" && $state eq "off" && $args[0] =~/^-?\d+$/ && $args[0]>0 && $args[0]<=AttrVal($name,"AM_armLevelCount",3)) || $cmd eq "off") {
 	        setState($hash,$name,$step,$args[0]);
 	      }
 	      else {
