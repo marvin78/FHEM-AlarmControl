@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use MIME::Base64;
 
-my $version = "0.5.3.4";
+my $version = "0.5.3.5";
 
 my %gets = (
   "status:noArg"    =>  "",
@@ -318,7 +318,7 @@ sub Set($@) {
 	      }
 	      else {
 	        if ($state ne "off" && $cmd eq "on") {
-	          error($hash,$name,"AlarmControl [$name]: Cannot arm. Device is already armed";
+	          error($hash,$name,"AlarmControl [$name]: Cannot arm. Device is already armed");
             return "Cannot arm. Device is already armed";
 	        }
 	        error($hash,$name,"AlarmControl [$name]: Cannot arm with level: ".$args[0],2);
